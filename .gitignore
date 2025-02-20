@@ -1,0 +1,8 @@
+*.log
+*.pyc
+runs/
+wandb/
+anybench/checkpoints/
+anybench/dataset/
+anybench/results/
+assets/anysd-test/

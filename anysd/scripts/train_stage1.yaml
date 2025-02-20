@@ -1,0 +1,13 @@
+Bin1117/anyedit-split:
+   add: 1
+   remove: 1
+   replace: 1
+   color_alter: 1
+   appearance_alter: 1
+   action_change: 1
+   counting: 1
+   tone_transfer: 1
+   background_change: 1
+   style_change: 0.2
+   implicit_change: 0.2
+   relation: 0.2

@@ -2,12 +2,36 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2411.15738-b31b1b.svg)](https://arxiv.org/abs/2411.15738)
 [![Dataset](https://img.shields.io/badge/🤗%20Huggingface-Dataset-yellow)](https://huggingface.co/datasets/Bin1117/AnyEdit)
+[![Checkpoint](https://img.shields.io/badge/🤗%20Huggingface-CKPT-blue)](https://huggingface.co/WeiChow/AnySD)
 [![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?logo=github)](https://github.com/DCDmllm/AnyEdit)
 [![Page](https://img.shields.io/badge/Home-Page-b3.svg)](https://dcd-anyedit.github.io/)
 
 
 > This is the official model implementation and benchmark evaluation repository of 
 > **AnyEdit: Unified High-Quality Image Edit with Any Idea**
+
+## **🚀** Quick Start
+
+1. **Clone this repo**
+
+```shell
+git clone https://github.com/weichow23/AnySD
+```
+
+
+2. **Environment setup**
+```bash
+conda create -n anyedit python=3.9.2
+conda activate anyedit
+pip install -r requirements.txt
+pip install --upgrade torch diffusers xformers triton pydantic deepspeed
+pip install git+https://github.com/openai/CLIP torchmetrics==0.5
+```
+
+3. For AnyBench you need to
+```shell
+bash anybench/setup.sh  # You need to go into the script and carefully check to ensure that the correct dependencies are installed.
+```
 
 ## 📊 AnyBench
 
@@ -17,43 +41,36 @@ We have integrated the evaluations for `AnyBench`, `Emu-edit`, and `MagicBrush` 
 
 Evaluation metrics are `CLIPim↑`, ` CLIPout↑`, ` L1↓` ,` L2↓`and  `DINO↑`
 
-#### **🚀** Quick Start
-
-```shell
-bash anybench/setup.sh  # You need to go into the script and carefully check to ensure that the correct dependencies are installed.
-```
-
 #### 🏆 Evaluation
 
 **EMU-Edit**
 
-1. download dataset via
-
 ```shell
-huggingface-cli download facebook/emu_edit_test_set_generations --repo-type dataset
+CUDA_VISIBLE_DEVICES=7 PYTHONPATH='./' python3 anybench/eval/emu_gen_eval.py
 ```
-
-2. run
-
-```shell
-# gen images
-CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python anybench/eval/emu_gen.py
-# test
-CUDA_VISIBLE_DEVICES=3 PYTHONPATH='./' python anybench/eval/emu_eval.py
-```
+It is worth noting that the emu-edit test actually uses the validation set from the Hugging Face repository [facebook/emu_edit_test_set_generations](https://huggingface.co/datasets/facebook/emu_edit_test_set_generations). This point has been discussed in previous work [here](https://github.com/HaozheZhao/UltraEdit/issues/18).
 
 **MagicBrush**
 
-download the test set from [MagicBrush](https://osu-nlp-group.github.io/MagicBrush/)
+download the test set from [MagicBrush](https://osu-nlp-group.github.io/MagicBrush/) and unzip it in `anybench/dataset/magicbrush`
 
 ```shell
-CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python anybench/eval/magicbrush_gen_eval.py
+CUDA_VISIBLE_DEVICES=7 PYTHONPATH='./' python3 anybench/eval/magicbrush_gen_eval.py
 ```
 
 **AnyBench**
 
+1. download the [AnyBench-test](https://drive.usercontent.google.com/download?id=1V-Z4agWoTMzAYkRJQ1BNz0-i79eAVWt4&export=download&authuser=0)
+
 ```shell
-CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python anybench/eval/anybench_gen_eval.py
+cd anybench/dataset/
+gdown 1V-Z4agWoTMzAYkRJQ1BNz0-i79eAVWt4
+sudo apt install unzip
+unzip AnyEdit-Test.zip 
+```
+
+```shell
+CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python3 anybench/eval/anybench_gen_eval.py
 ```
 
 ⚠ Notice: AnySD may output completely black images for certain sensitive commands, which is a normal occurrence.
@@ -62,50 +79,40 @@ CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python anybench/eval/anybench_gen_eval.py
 
 ## 🎨 AnySD
 
-#### **🚀** Quick Start
-
-1. **Clone this repo**
-
-```shell
-vim ~/.bashrc
-export HF_HOME=/mnt/bn/magellan-product-audit/weic/data_hf
-#按 Esc 退出插入模式, 输入 :wq 保存并退出 vim
-source ~/.bashrc
-echo $HF_HOME
-
-git clone https://github.com/weichow23/AnyDM
-
-git add .
-git commit -m "update"
-git push origin main
-```
-
-
-2. **Environment setup**
-```bash
-conda create -n anyedit python=3.9
-conda activate anyedit
-pip install -r requirements.txt
-pip install --upgrade torch diffusers xformers triton pydantic deepspeed
-pip install git+https://github.com/openai/CLIP
-```
-
-
 #### 🌐 Inference
 
-```shell
+We sorted out the AnyEdit data when we released it to the public. To adapt the sorted model, we retrained the model, so the results will be slightly different from those in the paper, but the general results are similar. And the hyperparameters also have a greater impact on the results.
 
+```shell
+CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python3 anysd/infer.py
 ```
 
 #### 🔮 Training
+
+**Prepare Data**
+
+```shell
+huggingface-cli download Bin1117/anyedit-split --repo-type dataset
+```
 
 1. **Stage I**
 ```shell
 bash train_stage1.sh
 ```
 2. **Stage II**
+```shell
+# before training, you should download anybench-test as it is the validation set
+cd anybench/dataset/
+gdown 1w_QsjDvNp-c9R1gaT5lex0esQAPRE1AQ
+sudo apt install unzip
+unzip AnyEdit-Test.zip 
 ```
 
+The experts included in AnySD are as follows
+
+```shell
+# TYPE = ['visual_ref', 'visual_ske', 'visual_scr', 'visual_bbox', 'visual_mat', 'visual_seg', 'visual_dep', 'viewpoint', 'global']
+bash train_stage2.sh
 ```
 
 
