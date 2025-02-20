@@ -3,7 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2411.15738-b31b1b.svg)](https://arxiv.org/abs/2411.15738)
 [![Dataset](https://img.shields.io/badge/🤗%20Huggingface-Dataset-yellow)](https://huggingface.co/datasets/Bin1117/AnyEdit)
 [![Checkpoint](https://img.shields.io/badge/🤗%20Huggingface-CKPT-blue)](https://huggingface.co/WeiChow/AnySD)
-[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?logo=github)](https://github.com/DCDmllm/AnyEdit)
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?logo=github)](https://github.com/DCDmllm/AnyEdit)[![GitHub](https://img.shields.io/badge/GitHub-ModelRepo-181717?logo=github)](https://github.com/weichow23/AnySD)
 [![Page](https://img.shields.io/badge/Home-Page-b3.svg)](https://dcd-anyedit.github.io/)
 
 
@@ -120,7 +120,7 @@ bash train_stage2.sh
 
 Since  **AnyEdit** contains a wide range of editing instructions across various domains, it holds promising potential for developing a powerful editing model to address high-quality editing tasks. However, training such a model has three extra challenges: (a) aligning the semantics of various multi-modal inputs; (b) identifying the semantic edits within each domain to control the granularity and scope of the edits; (c) coordinating the complexity of various editing tasks to prevent catastrophic forgetting. To this end, we propose a novel **AnyEdit Stable Diffusion** approach (🎨**AnySD**) to cope with various editing tasks in the real world.
 
-<img src='assets/model.png' width='100%' />
+<img src='https://github.com/weichow23/AnySD/raw/main/assets/model.png' width='100%' />
 
 **Architecture of 🎨AnySD**. 🎨**AnySD** is a novel architecture that supports three conditions (original image, editing instruction, visual prompt) for various editing tasks.
 
