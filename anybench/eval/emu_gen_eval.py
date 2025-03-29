@@ -35,7 +35,7 @@ def eval_emu(dataset, save_path):
     for item in tqdm(dataset):
         if not is_all_black(f"{save_path}/{item['idx']}.png"):  # skip the black image
             image_pairs.append(
-                [item['edited_image'], Image.open(f"{save_path}/{item['idx']}.png").convert('RGB'),
+                [Image.open(f"{save_path}/{item['idx']}.png").convert('RGB'), item['edited_image'],
                  item['output_caption']])
 
     model, transform = clip.load("ViT-B/32")
