@@ -5,22 +5,22 @@ from huggingface_hub import hf_hub_download
 
 task_embs_book = {
     # global
-    "background_change": 1,
-    "tone_transfer": 2,
-    "style_change": 3,
+    "background_change": 0,
+    "tone_transfer": 1,
+    "style_change": 2,
     # viewpoint
-    "movement": 4,
-    "resize": 5,
+    "movement": 3,
+    "resize": 4,
+    "outpaint": 5,
     "rotation_change": 6,
-    "outpaint": 7,
     # Visual-related tasks
-    "visual_bbox": 8,
-    "visual_depth": 9,
-    "visual_material_transfer": 10,
-    "visual_reference": 11,
-    "visual_scribble": 12,
-    "visual_segment": 13,
-    "visual_sketch": 14
+    "visual_bbox": 7,
+    "visual_depth": 8,
+    "visual_material_transfer": 9,
+    "visual_reference": 10,
+    "visual_scribble": 11,
+    "visual_segment": 12,
+    "visual_sketch": 13
 }
 
 global_embs_book = {
