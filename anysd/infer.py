@@ -1,8 +1,16 @@
 import os
+from PIL import Image
 from tqdm import tqdm
 from anysd.src.model import AnySDPipeline, choose_expert
-from anysd.train.valid_log import download_image
 from anysd.src.utils import choose_book, get_experts_dir
+
+# local deployment patch: valid_log.download_image drags in wandb/clip/anybench
+# eval deps; local files only need PIL.
+def download_image(path):
+    return Image.open(path).convert("RGB")
+
+STEPS = int(os.environ.get("ANYSD_STEPS", "100"))
+MAX_CASES = int(os.environ.get("ANYSD_MAX_CASES", "99"))
 
 if __name__ == "__main__":
     expert_file_path = get_experts_dir(repo_id="WeiChow/AnySD")
@@ -62,14 +70,14 @@ if __name__ == "__main__":
         }
     ]
 
-    for index, item in enumerate(tqdm(case)):
+    for index, item in enumerate(tqdm(case[:MAX_CASES])):
         mode = choose_expert(mode=item["edit_type"])
         if mode == 'general':
             images = pipeline(
                 prompt=item['edit'],
                 original_image=download_image(item['image_file']),
                 guidance_scale=3,
-                num_inference_steps=100,
+                num_inference_steps=STEPS,
                 original_image_guidance_scale=3,
                 adapter_name="general",
             )[0]
@@ -79,7 +87,7 @@ if __name__ == "__main__":
                 reference_image=download_image(item['refence_image_file']) if ('refence_image_file' in item.keys() and item['refence_image_file'] is not None)  else None,
                 original_image=download_image(item['image_file']),
                 guidance_scale=1.5,
-                num_inference_steps=100,
+                num_inference_steps=STEPS,
                 original_image_guidance_scale=2,
                 reference_image_guidance_scale=0.8,
                 adapter_name=mode,

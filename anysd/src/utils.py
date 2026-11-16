@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import PIL
 import torch
@@ -109,9 +111,12 @@ def convert_to_np(image, resolution):
     return np.array(image).transpose(2, 0, 1)
 
 def get_experts_dir(repo_id = "WeiChow/AnySD"):
-    filename = "README.md" 
-    local_path = hf_hub_download(repo_id=repo_id, filename=filename)
-    return local_path.replace(filename, "experts/")
+    # local deployment patch: hf_hub_download(README.md) alone leaves experts/*.bin
+    # absent on disk, so load_ip_adapter would fail with FileNotFound. Download the
+    # experts/ folder explicitly instead.
+    from huggingface_hub import snapshot_download
+    snapshot = snapshot_download(repo_id=repo_id, allow_patterns=["README.md", "experts/*"])
+    return os.path.join(snapshot, "experts") + os.sep
 
 def print_format_tree(obj, indent=""):
     if isinstance(obj, dict):

@@ -14,6 +14,12 @@ from diffusers import AutoencoderKL, StableDiffusionInstructPix2PixPipeline, UNe
 from anysd.src.pipe import AnySDInstructPix2PixPipeline
 from anysd.src.unet import UNet2DConditionAnySD
 
+# --- local deployment patch: MPS/CPU fallback instead of hard-coded CUDA ---
+# override with ANYSD_DEVICE / ANYSD_DTYPE env vars (e.g. ANYSD_DTYPE=float32
+# if fp16 produces NaN/black outputs on your MPS build)
+DEVICE = os.environ.get("ANYSD_DEVICE") or ("mps" if torch.backends.mps.is_available() else "cpu")
+DTYPE = getattr(torch, os.environ.get("ANYSD_DTYPE", "float16"))
+
 class IPAdapterPlusTrain(torch.nn.Module):
     def __init__(self, unet, image_encoder, expert_num, num_tokens=16, ckpt_path=None):
         '''
@@ -175,11 +181,11 @@ class AnySDEidtPipeline:  # for stage I inference
             vae = AutoencoderKL.from_pretrained(
                 pretrained_model_name_or_path, subfolder="vae", revision=revision, variant=variant
             ),
-            unet=UNet2DConditionModel.from_pretrained('WeiChow/AnySD', subfolder="unet", torch_dtype=torch.float16).to("cuda"), # zw@zju: this path for your pre-trained UNet
+            unet=UNet2DConditionModel.from_pretrained('WeiChow/AnySD', subfolder="unet", torch_dtype=DTYPE).to(DEVICE), # zw@zju: this path for your pre-trained UNet
             revision=revision,
             variant=variant,
-        ).to("cuda", dtype=torch.float16)
-        self.generator = torch.Generator("cuda").manual_seed(0)
+        ).to(DEVICE, dtype=DTYPE)
+        self.generator = torch.Generator(DEVICE).manual_seed(0)
 
         self.num_inference_steps = num_inference_steps
         self.image_guidance_scale = image_guidance_scale
@@ -249,15 +255,15 @@ class AnySDPipeline:
             vae = AutoencoderKL.from_pretrained(
                 pretrained_model_name_or_path, subfolder="vae", revision=revision, variant=variant
             ),
-            unet=UNet2DConditionAnySD.from_pretrained('WeiChow/AnySD', subfolder="unet", torch_dtype=torch.float16), # zw@zju: this path for your pre-trained UNet
+            unet=UNet2DConditionAnySD.from_pretrained('WeiChow/AnySD', subfolder="unet", torch_dtype=DTYPE), # zw@zju: this path for your pre-trained UNet
             revision=revision,
             variant=variant,
-        ).to("cuda", dtype=torch.float16)
+        ).to(DEVICE, dtype=DTYPE)
         self.general_sd_pipe = AnySDEidtPipeline()
 
-        self.sd_pipe.image_encoder = CLIPVisionModelWithProjection.from_pretrained('WeiChow/AnySD', 
-                                            subfolder="image_encoder").to("cuda", dtype=torch.float16)
-        self.generator = torch.Generator("cuda").manual_seed(0)
+        self.sd_pipe.image_encoder = CLIPVisionModelWithProjection.from_pretrained('WeiChow/AnySD',
+                                            subfolder="image_encoder").to(DEVICE, dtype=DTYPE)
+        self.generator = torch.Generator(DEVICE).manual_seed(0)
 
     def _load_task_embs(self, task_embs_checkpoints):
         self.sd_pipe.task_embs = torch.nn.Parameter(torch.randn(1, 1, 1, 768))
@@ -291,7 +297,7 @@ class AnySDPipeline:
     def _process_ref_image_cfg(self, reference_image):
         if reference_image is not None:
             reference_image_embeds, negative_reference_image_embeds = self.sd_pipe.encode_image(
-                reference_image, "cuda", 1, self.sd_pipe.unet.encoder_hid_proj.image_projection_layers
+                reference_image, DEVICE, 1, self.sd_pipe.unet.encoder_hid_proj.image_projection_layers
             )
             reference_image_embeds = torch.cat(
                 [reference_image_embeds, negative_reference_image_embeds, negative_reference_image_embeds]
@@ -300,7 +306,7 @@ class AnySDPipeline:
             # zw@zju: only supporting batch size = 1
             # change to batch in the future
             reference_image_embeds, negative_reference_image_embeds = self.sd_pipe.encode_image(
-                torch.zeros([1, 3, 224, 224]), "cuda", 1, self.sd_pipe.unet.encoder_hid_proj.image_projection_layers
+                torch.zeros([1, 3, 224, 224], device=DEVICE), DEVICE, 1, self.sd_pipe.unet.encoder_hid_proj.image_projection_layers
             )
             reference_image_embeds = torch.cat(
                 [reference_image_embeds, negative_reference_image_embeds, negative_reference_image_embeds]
