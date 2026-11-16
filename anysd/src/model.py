@@ -14,11 +14,15 @@ from diffusers import AutoencoderKL, StableDiffusionInstructPix2PixPipeline, UNe
 from anysd.src.pipe import AnySDInstructPix2PixPipeline
 from anysd.src.unet import UNet2DConditionAnySD
 
-# --- local deployment patch: MPS/CPU fallback instead of hard-coded CUDA ---
+# --- device selection patch: prefer CUDA (upstream behavior), fall back to MPS/CPU ---
 # override with ANYSD_DEVICE / ANYSD_DTYPE env vars (e.g. ANYSD_DTYPE=float32
 # if fp16 produces NaN/black outputs on your MPS build)
-DEVICE = os.environ.get("ANYSD_DEVICE") or ("mps" if torch.backends.mps.is_available() else "cpu")
-DTYPE = getattr(torch, os.environ.get("ANYSD_DTYPE", "float16"))
+DEVICE = os.environ.get("ANYSD_DEVICE") or (
+    "cuda" if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available()
+    else "cpu"
+)
+DTYPE = getattr(torch, os.environ.get("ANYSD_DTYPE", "float16" if DEVICE != "cpu" else "float32"))
 
 class IPAdapterPlusTrain(torch.nn.Module):
     def __init__(self, unet, image_encoder, expert_num, num_tokens=16, ckpt_path=None):

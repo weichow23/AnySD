@@ -6,8 +6,9 @@
 ## 代码改动
 
 1. `anysd/src/model.py`
-   - 顶部新增 `DEVICE` / `DTYPE` 常量（环境变量 `ANYSD_DEVICE` / `ANYSD_DTYPE` 可覆盖，
-     默认 mps + float16）。
+   - 顶部新增 `DEVICE` / `DTYPE` 常量，按 cuda → mps → cpu 优先级选择（保持上游 CUDA
+     行为不变），环境变量 `ANYSD_DEVICE` / `ANYSD_DTYPE` 可覆盖；CPU 时默认 float32，
+     其余默认 float16。
    - 4 处 `.to("cuda")` / `torch.Generator("cuda")` 改为 `DEVICE`（两条流水线 + generator）。
    - `_process_ref_image_cfg` 中 2 处 `encode_image(..., "cuda", ...)` 改为 `DEVICE`，
      `torch.zeros` 增加 `device=DEVICE`（visual 系任务用）。
