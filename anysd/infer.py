@@ -1,10 +1,34 @@
 import os
-from tqdm import tqdm
-from anysd.src.model import AnySDPipeline, choose_expert
-from anysd.train.valid_log import download_image
-from anysd.src.utils import choose_book, get_experts_dir
+from contextlib import ExitStack
+from urllib.parse import urlsplit
+from urllib.request import urlopen
+
+from PIL import Image, ImageOps
+
+
+def download_image(path):
+    """Load a local file or HTTP(S) image with the original demo preprocessing."""
+    path = os.fspath(path)
+    with ExitStack() as stack:
+        source = path
+        if urlsplit(path).scheme.lower() in ("http", "https"):
+            source = stack.enter_context(urlopen(path, timeout=30))
+        image = stack.enter_context(Image.open(source))
+        return ImageOps.exif_transpose(image).convert("RGB").resize((512, 512))
+
+
+STEPS = int(os.environ.get("ANYSD_STEPS", "100"))
+MAX_CASES = os.environ.get("ANYSD_MAX_CASES")
+MAX_CASES = int(MAX_CASES) if MAX_CASES else None
+if MAX_CASES is not None and MAX_CASES < 0:
+    raise ValueError("ANYSD_MAX_CASES must be a non-negative integer")
 
 if __name__ == "__main__":
+    from tqdm import tqdm
+
+    from anysd.src.model import AnySDPipeline, choose_expert
+    from anysd.src.utils import choose_book, get_experts_dir
+
     expert_file_path = get_experts_dir(repo_id="WeiChow/AnySD")
     book_dim, book = choose_book('all')
     task_embs_checkpoints = expert_file_path + "task_embs.bin"
@@ -62,14 +86,14 @@ if __name__ == "__main__":
         }
     ]
 
-    for index, item in enumerate(tqdm(case)):
+    for index, item in enumerate(tqdm(case[:MAX_CASES])):
         mode = choose_expert(mode=item["edit_type"])
         if mode == 'general':
             images = pipeline(
                 prompt=item['edit'],
                 original_image=download_image(item['image_file']),
                 guidance_scale=3,
-                num_inference_steps=100,
+                num_inference_steps=STEPS,
                 original_image_guidance_scale=3,
                 adapter_name="general",
             )[0]
@@ -79,7 +103,7 @@ if __name__ == "__main__":
                 reference_image=download_image(item['refence_image_file']) if ('refence_image_file' in item.keys() and item['refence_image_file'] is not None)  else None,
                 original_image=download_image(item['image_file']),
                 guidance_scale=1.5,
-                num_inference_steps=100,
+                num_inference_steps=STEPS,
                 original_image_guidance_scale=2,
                 reference_image_guidance_scale=0.8,
                 adapter_name=mode,
