@@ -14,15 +14,18 @@ from diffusers import AutoencoderKL, StableDiffusionInstructPix2PixPipeline, UNe
 from anysd.src.pipe import AnySDInstructPix2PixPipeline
 from anysd.src.unet import UNet2DConditionAnySD
 
-# --- device selection patch: prefer CUDA (upstream behavior), fall back to MPS/CPU ---
-# override with ANYSD_DEVICE / ANYSD_DTYPE env vars (e.g. ANYSD_DTYPE=float32
-# if fp16 produces NaN/black outputs on your MPS build)
+# Prefer CUDA, then MPS, then CPU. ANYSD_DEVICE / ANYSD_DTYPE can override
+# these defaults (for example, ANYSD_DTYPE=float32 for MPS builds with fp16 issues).
 DEVICE = os.environ.get("ANYSD_DEVICE") or (
     "cuda" if torch.cuda.is_available()
     else "mps" if torch.backends.mps.is_available()
     else "cpu"
 )
-DTYPE = getattr(torch, os.environ.get("ANYSD_DTYPE", "float16" if DEVICE != "cpu" else "float32"))
+DTYPE = getattr(
+    torch,
+    os.environ.get("ANYSD_DTYPE")
+    or ("float32" if torch.device(DEVICE).type == "cpu" else "float16"),
+)
 
 class IPAdapterPlusTrain(torch.nn.Module):
     def __init__(self, unet, image_encoder, expert_num, num_tokens=16, ckpt_path=None):
@@ -271,7 +274,7 @@ class AnySDPipeline:
 
     def _load_task_embs(self, task_embs_checkpoints):
         self.sd_pipe.task_embs = torch.nn.Parameter(torch.randn(1, 1, 1, 768))
-        self.sd_pipe.task_embs.data = torch.load(task_embs_checkpoints).to(
+        self.sd_pipe.task_embs.data = torch.load(task_embs_checkpoints, map_location="cpu").to(
             device=self.sd_pipe.device, dtype=self.sd_pipe.dtype)   # directly load to sd_pipe
 
     def _load_adapter(self):
@@ -285,15 +288,15 @@ class AnySDPipeline:
 
     def _shift_adapter(self, name):
         if self.active_adapter != name:
-            if name == 'gerneral':
-                self.active_adapter = 'gerneral'
+            if name == 'general':
+                self.active_adapter = 'general'
             else:
                 assert name in self.adapters_list.keys(), f"Adapter '{name}' not loaded."
                 self.active_adapter = name
                 self._load_adapter()
 
     def list_adapters(self):
-        return list(self.adapters_list.keys())+['gerneral']
+        return list(self.adapters_list.keys())+['general']
 
     def _set_ref_scale(self, scale):
         self.sd_pipe.set_ip_adapter_scale(scale)

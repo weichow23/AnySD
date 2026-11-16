@@ -3,7 +3,7 @@ import os
 import numpy as np
 import PIL
 import torch
-from huggingface_hub import hf_hub_download
+from huggingface_hub import snapshot_download
 
 task_embs_book = {
     # global
@@ -111,10 +111,8 @@ def convert_to_np(image, resolution):
     return np.array(image).transpose(2, 0, 1)
 
 def get_experts_dir(repo_id = "WeiChow/AnySD"):
-    # local deployment patch: hf_hub_download(README.md) alone leaves experts/*.bin
-    # absent on disk, so load_ip_adapter would fail with FileNotFound. Download the
-    # experts/ folder explicitly instead.
-    from huggingface_hub import snapshot_download
+    # Download task embeddings and adapters before returning their local directory.
+    # Fetching only README.md does not populate experts/ in a fresh Hub cache.
     snapshot = snapshot_download(repo_id=repo_id, allow_patterns=["README.md", "experts/*"])
     return os.path.join(snapshot, "experts") + os.sep
 
@@ -132,4 +130,3 @@ if __name__ == "__main__":
     ckpt = "../ip_adapter_plus/ip_adapter_sd15.bin"
     sd = torch.load(ckpt, map_location="cpu")
     print_format_tree(sd)
-    

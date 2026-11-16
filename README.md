@@ -20,6 +20,10 @@ git clone https://github.com/weichow23/AnySD
 
 
 2. **Environment setup**
+
+For Apple Silicon inference, use the [MPS setup](#apple-silicon-mps-inference) below.
+The following environment includes the CUDA training and evaluation dependencies.
+
 ```bash
 conda create -n anyedit python=3.9.2
 conda activate anyedit
@@ -85,6 +89,61 @@ We sorted out the AnyEdit data when we released it to the public. To adapt the s
 
 ```shell
 CUDA_VISIBLE_DEVICES=0 PYTHONPATH='./' python3 anysd/infer.py
+```
+
+##### Apple Silicon (MPS) inference
+
+From the repository root, create a separate Python 3.10 environment for inference:
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-inference.txt
+python -m pip check
+python -c "import torch; print('PyTorch:', torch.__version__); assert torch.backends.mps.is_available(), 'MPS is unavailable in this Python environment'"
+ANYSD_DEVICE=mps PYTHONPATH=./ python anysd/infer.py
+```
+
+This environment uses PyTorch 2.3.0, Diffusers 0.31.0, Transformers 4.45.2, and
+PEFT 0.14.0. It excludes the training and evaluation dependencies. Model weights,
+including the expert adapters and task embeddings, are downloaded on the first
+run. Edited images are saved to `assets/anysd-test/`.
+
+Without an explicit device override, inference selects CUDA, then MPS, then CPU.
+CUDA and MPS default to `float16`; CPU defaults to `float32`.
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `ANYSD_DEVICE` | Automatic selection | Select the inference device, e.g. `mps`, `cuda`, or `cpu`. |
+| `ANYSD_DTYPE` | Device-dependent | Override the floating-point dtype, e.g. `float32`. |
+| `ANYSD_STEPS` | `100` | Set the number of denoising steps. |
+| `ANYSD_MAX_CASES` | Unset (all examples) | Run only the first N demo cases. |
+
+For a short smoke run:
+
+```bash
+ANYSD_DEVICE=mps ANYSD_MAX_CASES=1 ANYSD_STEPS=10 PYTHONPATH=./ python anysd/infer.py
+```
+
+If your MPS build has numerical problems with `float16`, try
+`ANYSD_DTYPE=float32`, allowing for higher memory use. The demo loads local images
+or HTTP(S) image URLs, applies EXIF orientation, and converts them to 512 x 512 RGB.
+
+**Validation scope:** MPS float16 inference was checked after the preprocessing
+and adapter-switching fixes with all seven demo examples at 100 steps: six
+`general` edits and one `visual_reference` edit with a reference image. Four
+additional 10-step calls on the same instance covered returning to `general`,
+switching back to `visual_reference`, using `global` without a reference image,
+and returning to `general` again. All eleven outputs were 512 x 512 and neither
+all-black nor constant. This verifies those inference paths, not every expert,
+image-editing quality, CUDA execution, or training. Training still uses the
+separate CUDA environment.
+
+Run the lightweight regression tests without loading model weights:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
 #### 🔮 Training

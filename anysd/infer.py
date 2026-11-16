@@ -1,18 +1,34 @@
 import os
-from PIL import Image
-from tqdm import tqdm
-from anysd.src.model import AnySDPipeline, choose_expert
-from anysd.src.utils import choose_book, get_experts_dir
+from contextlib import ExitStack
+from urllib.parse import urlsplit
+from urllib.request import urlopen
 
-# local deployment patch: valid_log.download_image drags in wandb/clip/anybench
-# eval deps; local files only need PIL.
+from PIL import Image, ImageOps
+
+
 def download_image(path):
-    return Image.open(path).convert("RGB")
+    """Load a local file or HTTP(S) image with the original demo preprocessing."""
+    path = os.fspath(path)
+    with ExitStack() as stack:
+        source = path
+        if urlsplit(path).scheme.lower() in ("http", "https"):
+            source = stack.enter_context(urlopen(path, timeout=30))
+        image = stack.enter_context(Image.open(source))
+        return ImageOps.exif_transpose(image).convert("RGB").resize((512, 512))
+
 
 STEPS = int(os.environ.get("ANYSD_STEPS", "100"))
-MAX_CASES = int(os.environ.get("ANYSD_MAX_CASES", "99"))
+MAX_CASES = os.environ.get("ANYSD_MAX_CASES")
+MAX_CASES = int(MAX_CASES) if MAX_CASES else None
+if MAX_CASES is not None and MAX_CASES < 0:
+    raise ValueError("ANYSD_MAX_CASES must be a non-negative integer")
 
 if __name__ == "__main__":
+    from tqdm import tqdm
+
+    from anysd.src.model import AnySDPipeline, choose_expert
+    from anysd.src.utils import choose_book, get_experts_dir
+
     expert_file_path = get_experts_dir(repo_id="WeiChow/AnySD")
     book_dim, book = choose_book('all')
     task_embs_checkpoints = expert_file_path + "task_embs.bin"

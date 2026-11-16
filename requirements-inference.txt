@@ -1,0 +1,15 @@
+# Inference packages from the Python 3.10 MPS environment.
+torch==2.3.0
+torchvision==0.18.0
+diffusers==0.31.0
+transformers==4.45.2
+peft==0.14.0
+accelerate==1.15.0
+huggingface-hub==0.36.2
+# PyTorch 2.3.0 wheels predate the NumPy 2 ABI.
+numpy==1.26.4
+Pillow==12.3.0
+einops==0.8.2
+safetensors==0.8.0
+termcolor==3.3.0
+tqdm==4.70.1
